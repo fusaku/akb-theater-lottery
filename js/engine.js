@@ -162,13 +162,25 @@ function runLotteryEngine({ audiences, performance: perf, lotteryConfig: cfg, me
 
   // ── 各枠抽选 ────────────────────────────────────────────────
   const allWinners = [];
-  const loserOverflow = [];
-  const wonIds = new Set(); // 已当选的观众ID，防止同一人多次当选
-  let generalSeats = capacity - frameKeys.reduce((s, k) => s + frames[k], 0);
+  const wonIds = new Set();
 
-  frameKeys.forEach(k => {
+  // 按优先级定义枠顺序
+  const FRAME_PRIORITY = [
+    '百発98中',
+    '映像倉庫',
+    '柱の会',
+    '女性小中学生',
+    'ファミリーカップル',
+  ];
+
+  // 溢出接收枠（优先级1、2，按顺序补充）
+  const OVERFLOW_FRAMES = ['映像倉庫', '柱の会'];
+
+  // 按优先级顺序抽选
+  const remainingSeats = {}; // 记录每个枠剩余未用席位
+  FRAME_PRIORITY.forEach(k => {
+    if (!frames[k] || frames[k] <= 0) return;
     const seats = frames[k];
-    // 排除已当选的观众
     const pool = (grouped[k] || []).filter(a => !wonIds.has(a.id));
     const { winners, losers } = weightedDraw(pool, seats, weightFn);
 
@@ -176,24 +188,43 @@ function runLotteryEngine({ audiences, performance: perf, lotteryConfig: cfg, me
       allWinners.push({ ...w, _frame: k });
       wonIds.add(w.id);
     });
-    loserOverflow.push(...losers);
 
-    if (cfg.overflow && winners.length < seats) {
-      generalSeats += (seats - winners.length);
-    }
+    // 记录该枠剩余席位
+    const leftover = seats - winners.length;
+    if (leftover > 0) remainingSeats[k] = leftover;
   });
 
-  // 一般枠也排除已当选的观众
-  const generalPool = [
-    ...(grouped['__general__'] || []),
-    ...(cfg.overflow ? loserOverflow : []),
-  ].filter(a => !wonIds.has(a.id));
+  // 溢出处理：将剩余席位分配给 映像倉庫 和 柱の会
+  if (cfg.overflow) {
+    OVERFLOW_FRAMES.forEach(targetFrame => {
+      // 计算可追加的席位（来自其他枠的溢出，不含自身）
+      let extraSeats = 0;
+      Object.entries(remainingSeats).forEach(([k, v]) => {
+        if (k !== targetFrame) extraSeats += v;
+      });
+      if (extraSeats <= 0) return;
 
-  // ── 一般枠抽选（含溢出） ─────────────────────────────────────
-  const { winners: generalWinners } = weightedDraw(
-    generalPool, Math.max(generalSeats, 0), weightFn
-  );
-  generalWinners.forEach(w => allWinners.push({ ...w, _frame: '一般' }));
+      // 从还没当选的该枠候选池里补抽
+      const pool = (grouped[targetFrame] || []).filter(a => !wonIds.has(a.id));
+      if (!pool.length) return;
+
+      const { winners } = weightedDraw(pool, extraSeats, weightFn);
+      winners.forEach(w => {
+        allWinners.push({ ...w, _frame: targetFrame + '(補填)' });
+        wonIds.add(w.id);
+      });
+    });
+  }
+
+  // 一般枠：capacity 减去所有枠席位后的剩余
+  const totalFrameSeats = Object.values(frames).reduce((s, v) => s + v, 0);
+  const generalSeats = Math.max(capacity - totalFrameSeats, 0);
+  const generalPool = (grouped['__general__'] || []).filter(a => !wonIds.has(a.id));
+  const { winners: generalWinners } = weightedDraw(generalPool, generalSeats, weightFn);
+  generalWinners.forEach(w => {
+    allWinners.push({ ...w, _frame: '一般' });
+    wonIds.add(w.id);
+  });
 
   // ── 统计数据 ─────────────────────────────────────────────────
   const frameCounts = {};

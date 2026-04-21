@@ -151,7 +151,7 @@ window.I18N_JA = {
   lcfg_frame_tip: '枠内観客の基本重み乗数（1–20倍）',
   lcfg_overflow_title: '枠オーバーフロー設定',
   lcfg_overflow_label: '枠オーバーフロー配分を許可',
-  lcfg_overflow_tip: 'ある枠の応募者が席数に満たない場合、余剰席を一般枠へ自動配分します',
+  lcfg_overflow_tip: 'ある枠の応募者が席数に満たない場合、余剰席を映像倉庫枠・柱の会枠へ優先補填します',
 
   // 执行抽选
   run_title: '抽選実行',

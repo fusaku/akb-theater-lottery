@@ -151,7 +151,7 @@ window.I18N_ZH = {
     lcfg_frame_tip: '该枠内观众的基础权重乘数（1–20倍）',
     lcfg_overflow_title: '枠溢出设置',
     lcfg_overflow_label: '允许枠溢出分配',
-    lcfg_overflow_tip: '当某枠报名人数不足席数时，多余名额自动分配给一般枠，避免座位空置',
+    lcfg_overflow_tip: '当某枠人数不足时，多余名额优先补充给映像倉庫枠和柱の会枠',
 
     // 执行抽选
     run_title: '执行抽选',
