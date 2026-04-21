@@ -162,28 +162,34 @@ function runLotteryEngine({ audiences, performance: perf, lotteryConfig: cfg, me
 
   // ── 各枠抽选 ────────────────────────────────────────────────
   const allWinners = [];
-  const loserOverflow = [];  // 枠内落选者，overflow 开启时并入一般枠
+  const loserOverflow = [];
+  const wonIds = new Set(); // 已当选的观众ID，防止同一人多次当选
   let generalSeats = capacity - frameKeys.reduce((s, k) => s + frames[k], 0);
 
   frameKeys.forEach(k => {
     const seats = frames[k];
-    const pool = grouped[k] || [];
+    // 排除已当选的观众
+    const pool = (grouped[k] || []).filter(a => !wonIds.has(a.id));
     const { winners, losers } = weightedDraw(pool, seats, weightFn);
 
-    winners.forEach(w => allWinners.push({ ...w, _frame: k }));
+    winners.forEach(w => {
+      allWinners.push({ ...w, _frame: k });
+      wonIds.add(w.id);
+    });
     loserOverflow.push(...losers);
 
-    // 枠不满时，剩余席位并入一般枠
     if (cfg.overflow && winners.length < seats) {
       generalSeats += (seats - winners.length);
     }
   });
 
-  // ── 一般枠抽选（含溢出） ─────────────────────────────────────
+  // 一般枠也排除已当选的观众
   const generalPool = [
     ...(grouped['__general__'] || []),
     ...(cfg.overflow ? loserOverflow : []),
-  ];
+  ].filter(a => !wonIds.has(a.id));
+
+  // ── 一般枠抽选（含溢出） ─────────────────────────────────────
   const { winners: generalWinners } = weightedDraw(
     generalPool, Math.max(generalSeats, 0), weightFn
   );

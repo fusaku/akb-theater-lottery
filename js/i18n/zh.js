@@ -42,7 +42,7 @@ window.I18N_ZH = {
     gen_card_title: '批量生成观众',
     gen_total: '生成总数',
     gen_frame_title: '会员枠分配（人数）',
-    gen_frame_tip: '留空或0则不生成该枠，剩余自动分配为一般观众',
+    gen_frame_tip: '设置各枠的人数，同一观众可同时持有多个枠资格，剩余自动分配为一般观众',
     gen_gender_title: '性别比例',
     gen_male: '男性',
     gen_female: '女性',

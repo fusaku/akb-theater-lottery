@@ -179,17 +179,36 @@ function generateAudiences() {
   }
 
   // ── 枠スロット生成 ──
-  const slots = [];
-  FRAME_KEYS.forEach(k => {
-    for (let i = 0; i < frameQuotas[k]; i++) slots.push([k]);
+  // 每个枠独立随机分配给 n 个观众中的 quota 个
+  // 同一观众可以被多个枠选中
+  // 先生成每个观众的基础属性
+  const baseAttrs = Array.from({ length: n }, () => {
+    const age = skewedRandom(ageMin, ageMax, ageSkew);
+    const gender = pickGender();
+    return { age, gender };
   });
-  for (let i = slots.length; i < n; i++) slots.push([]);
 
-  // シャッフル
-  for (let i = slots.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [slots[i], slots[j]] = [slots[j], slots[i]];
-  }
+  // 再按枠规则分配，限制候选池
+  const memberTypeSets = Array.from({ length: n }, () => new Set());
+
+  FRAME_KEYS.forEach(k => {
+    const quota = frameQuotas[k] || 0;
+    if (quota <= 0) return;
+
+    // 筛选符合该枠条件的观众索引
+    let eligible = baseAttrs.map((a, idx) => idx); // 默认全部可选
+    if (k === '女性小中学生') {
+      eligible = baseAttrs.map((a, idx) => idx)
+        .filter(idx => baseAttrs[idx].gender === 'female' || baseAttrs[idx].age <= 15);
+    }
+
+    // 从符合条件的观众里随机选 quota 个
+    const pool = eligible.length >= quota ? eligible : eligible; // 不够就全选
+    const picked = randomSample(pool.length, Math.min(quota, pool.length));
+    picked.forEach(i => memberTypeSets[pool[i]].add(k));
+  });
+
+  const slots = memberTypeSets.map(s => [...s]);
 
   // ── 消費インデックスを事前抽選 ──
   const hsIndices = randomSample(n, Math.min(hsCount, n));
@@ -197,7 +216,8 @@ function generateAudiences() {
 
   // ── 観客生成 ──
   slots.forEach(function (memberTypes, idx) {
-    const age = skewedRandom(ageMin, ageMax, ageSkew);
+    const age = baseAttrs[idx].age;    // 用已生成的，和枠分配一致
+    const gender = baseAttrs[idx].gender; // 用已生成的，和枠分配一致
 
     const hsSpend = hsIndices.has(idx) ? skewedRandom(hsMin, hsMax, 0) : 0;
     const ltSpend = ltIndices.has(idx) ? skewedRandom(ltMin, ltMax, 0) : 0;
@@ -216,7 +236,7 @@ function generateAudiences() {
 
     DB.audiences.push({
       id: `u${(DB.audiences.length + 1).toString().padStart(5, '0')}`,
-      gender: pickGender(),
+      gender: gender,
       age: age,
       memberTypes: memberTypes,
       memberType: memberTypes[0] || '',
@@ -286,30 +306,6 @@ function savePerformance() {
   saveDB('performance');
   updateFooter();
   showToast('公演设置已保存');
-}
-
-// ═══════════════════════════════════════════════════════════
-// 消费操作
-// ═══════════════════════════════════════════════════════════
-
-function addConsumption() {
-  const type = document.getElementById('c_type').value;
-  DB.consumption.push({
-    type,
-    name: document.getElementById('c_name').value || (type === 'handshake' ? '握手券' : '摇奖'),
-    price: parseInt(document.getElementById('c_price').value) || 0,
-    memberName: document.getElementById('c_member').value,
-    probability: type === 'lottery' ? parseInt(document.getElementById('c_prob').value) || 10 : 100,
-    place: type === 'lottery' ? document.getElementById('c_place').value : '劇場',
-  });
-  saveDB('consumption');
-  refreshConsTable();
-}
-
-function delConsumption(i) {
-  DB.consumption.splice(i, 1);
-  saveDB('consumption');
-  refreshConsTable();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -428,9 +424,9 @@ function showToast(msg) {
 // （纯模块化项目可以改成 import/export，GitHub Pages 直接引用脚本则需要这样）
 Object.assign(window, {
   // 导航
-  switchTab, syncSlider,switchLang,
+  switchTab, syncSlider, switchLang,
   // 成员
-  addMember, delMember, clearMembers, loadDefaultMembers,updateMemberField,
+  addMember, delMember, clearMembers, loadDefaultMembers, updateMemberField,
   // 观众
   addAudience, generateAudiences, clearAudiences, exportAudiencesCSV,
   // 公演

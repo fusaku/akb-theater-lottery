@@ -42,7 +42,7 @@ window.I18N_JA = {
   gen_card_title: '観客一括生成',
   gen_total: '生成総数',
   gen_frame_title: '会員枠配分（人数）',
-  gen_frame_tip: '0または空欄の枠は生成しません。残りは一般観客として配分されます',
+  gen_frame_tip: '各枠の人数を設定。複数枠の重複保持に対応し、残りのスロットは一般客として自動分配されます。',
   gen_gender_title: '性別比率',
   gen_male: '男性',
   gen_female: '女性',
