@@ -59,10 +59,10 @@ function calcWeight(audience, cfg, perfMemberSet, members) {
   }
 
   // ── 会员枠倍率（乘法，让枠内成员获得整体提升）──
-  if (a.memberType && cfg.wMember > 0) {
-    const frameMult = cfg.frameWeights[a.memberType] || 1;
-    // wMember 控制倍率的"生效比例"：wMember=0 时倍率无效，wMember=10 时完全生效
-    w *= (1 + (frameMult - 1) * cfg.wMember / 10);
+  const types = a.memberTypes || (a.memberType ? [a.memberType] : []);
+  if (types.length > 0 && cfg.wMember > 0) {
+    const maxMult = Math.max(...types.map(t => cfg.frameWeights[t] || 1));
+    w *= (1 + (maxMult - 1) * cfg.wMember / 10);
   }
 
   return Math.max(w, 0.01);
@@ -84,7 +84,7 @@ function weightedDraw(pool, n, weightFn) {
 
   const k = Math.min(n, pool.length);
   const weights = pool.map(a => weightFn(a));
-  const total   = weights.reduce((s, w) => s + w, 0);
+  const total = weights.reduce((s, w) => s + w, 0);
 
   // 构建 CDF
   const cdf = [];
@@ -113,9 +113,9 @@ function weightedDraw(pool, n, weightFn) {
     }
   }
 
-  const winners   = [...chosen].map(i => pool[i]);
+  const winners = [...chosen].map(i => pool[i]);
   const winnerIds = new Set(winners.map(a => a.id));
-  const losers    = pool.filter(a => !winnerIds.has(a.id));
+  const losers = pool.filter(a => !winnerIds.has(a.id));
 
   return { winners, losers };
 }
@@ -133,8 +133,8 @@ function weightedDraw(pool, n, weightFn) {
  *   stats:      { total, winCount, loseCount, frameCounts, memberCounts, genderCounts }
  */
 function runLotteryEngine({ audiences, performance: perf, lotteryConfig: cfg, members }) {
-  const capacity    = perf.capacity || 200;
-  const frames      = perf.frames   || {};
+  const capacity = perf.capacity || 200;
+  const frames = perf.frames || {};
   const perfMembers = new Set(perf.memberNames || []);
 
   // 绑定参数，生成当次抽选专用的权重函数
@@ -142,24 +142,27 @@ function runLotteryEngine({ audiences, performance: perf, lotteryConfig: cfg, me
 
   // ── 按会员类型分组 ──────────────────────────────────────────
   const frameKeys = Object.keys(frames).filter(k => frames[k] > 0);
-  const grouped   = { __general__: [] };
+  const grouped = { __general__: [] };
   frameKeys.forEach(k => { grouped[k] = []; });
 
-  audiences.forEach(a => {
-    const key = (a.memberType && frames[a.memberType] > 0)
-      ? a.memberType
-      : '__general__';
-    grouped[key].push(a);
+  DB.audiences.forEach(a => {
+    const types = a.memberTypes || (a.memberType ? [a.memberType] : []);
+    const validFrames = types.filter(t => frames[t] > 0);
+    if (validFrames.length === 0) {
+      grouped['__general__'].push(a);
+    } else {
+      validFrames.forEach(t => grouped[t].push(a));
+    }
   });
 
   // ── 各枠抽选 ────────────────────────────────────────────────
-  const allWinners   = [];
+  const allWinners = [];
   const loserOverflow = [];  // 枠内落选者，overflow 开启时并入一般枠
-  let generalSeats   = capacity - frameKeys.reduce((s, k) => s + frames[k], 0);
+  let generalSeats = capacity - frameKeys.reduce((s, k) => s + frames[k], 0);
 
   frameKeys.forEach(k => {
     const seats = frames[k];
-    const pool  = grouped[k] || [];
+    const pool = grouped[k] || [];
     const { winners, losers } = weightedDraw(pool, seats, weightFn);
 
     winners.forEach(w => allWinners.push({ ...w, _frame: k }));
@@ -182,7 +185,7 @@ function runLotteryEngine({ audiences, performance: perf, lotteryConfig: cfg, me
   generalWinners.forEach(w => allWinners.push({ ...w, _frame: '一般' }));
 
   // ── 统计数据 ─────────────────────────────────────────────────
-  const frameCounts  = {};
+  const frameCounts = {};
   const memberCounts = {};
   const genderCounts = { male: 0, female: 0, other: 0 };
 
@@ -197,9 +200,9 @@ function runLotteryEngine({ audiences, performance: perf, lotteryConfig: cfg, me
   return {
     allWinners,
     stats: {
-      total:        audiences.length,
-      winCount:     allWinners.length,
-      loseCount:    audiences.length - allWinners.length,
+      total: audiences.length,
+      winCount: allWinners.length,
+      loseCount: audiences.length - allWinners.length,
       frameCounts,
       memberCounts,
       genderCounts,

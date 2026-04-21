@@ -20,15 +20,15 @@ const DB_DEFAULTS = {
   performance: {
     name: '',
     date: '',
-    capacity: 200,
-    ticketPrice: 3500,
+    capacity: 250,
+    ticketPrice: 4100,
     memberNames: [],
     frames: {
-      '映像倉庫':       10,
-      '柱の会':         10,
-      '百発98中':        5,
-      '女性小中学生':    20,
-      'ファミリーカップル': 15,
+      '映像倉庫':       80,
+      '柱の会':         70,
+      '百発98中':       50,
+      '女性小中学生':    10,
+      'ファミリーカップル': 10,
     },
   },
 

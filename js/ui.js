@@ -24,7 +24,7 @@ function buildNav() {
             onclick="switchTab('${t.id}')">
       <span class="icon">${t.icon}</span>
       <span>${t.label}</span>
-      ${t.id === 'members'   ? `<span class="nav-badge" id="badge_members">${DB.members.length}</span>`   : ''}
+      ${t.id === 'members' ? `<span class="nav-badge" id="badge_members">${DB.members.length}</span>` : ''}
       ${t.id === 'audiences' ? `<span class="nav-badge" id="badge_audiences">${DB.audiences.length}</span>` : ''}
     </button>
   `).join('');
@@ -89,6 +89,11 @@ function renderMembers(el) {
       <input type="number" id="m_fancount" value="200" min="0" class="w-md">
       <span style="font-size:11px;color:var(--text3)">用于随机生成观众时按比例分配</span>
     </div>
+    <div class="form-row">
+    <label>期别</label>
+    <input type="text" id="m_generation" value="" placeholder="16期 / Team8" class="w-md">
+    <span style="font-size:11px;color:var(--text3)">期</span>
+    </div>
     <button class="btn btn-primary" onclick="addMember()">＋ 添加成员</button>
   </div>
 
@@ -111,13 +116,14 @@ function refreshMemberTable() {
   }
   el.innerHTML = `
   <div class="table-wrap"><table>
-    <thead><tr><th>#</th><th>姓名</th><th>优先度</th><th>饭人数</th><th>操作</th></tr></thead>
+    <thead><tr><th>#</th><th>姓名</th><th>优先度</th><th>饭人数</th><th>期别</th><th>操作</th></tr></thead>
     <tbody>
       ${DB.members.map((m, i) => `<tr>
         <td style="color:var(--text3);font-family:'DM Mono',monospace">${String(i + 1).padStart(2, '0')}</td>
         <td style="font-weight:500">${m.name}</td>
         <td><span class="badge badge-purple">P${m.priority}</span></td>
         <td style="font-family:'DM Mono',monospace;color:var(--text2)">${m.fanCount.toLocaleString()}</td>
+        <td style="color:var(--text2)">${m.generation ? m.generation + '期' : '–'}</td>
         <td><button class="btn btn-danger btn-sm" onclick="delMember(${i})">削除</button></td>
       </tr>`).join('')}
     </tbody>
@@ -149,14 +155,101 @@ function renderAudiences(el) {
   </div>
 
   <div class="card">
-    <div class="card-header"><h3>快速生成随机观众</h3></div>
+    <div class="card-header"><h3>批量生成观众</h3></div>
     <div class="form-row">
-      <label>生成数量</label>
-      <input type="number" id="gen_n" value="200" min="1" max="10000" class="w-md">
-      <button class="btn btn-primary" onclick="generateAudiences()">随机生成</button>
+      <label>生成总数</label>
+      <input type="number" id="gen_n" value="2000" min="1" max="20000" class="w-md">
     </div>
-    <p style="font-size:12px;color:var(--text3)">按成员饭人数比例分配喜欢成员，会员类型随机分配（约50%为一般观众）</p>
-  </div>
+
+    <hr class="divider">
+    <div class="card-header" style="margin-top:0"><h3>会员枠分配（人数）</h3></div>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:10px">留空或0则不生成该枠，剩余自动分配为一般观众</p>
+    ${FRAME_KEYS.map(k => `
+    <div class="form-row">
+      <label style="min-width:130px;font-size:12px">${FRAME_LABELS[k]}</label>
+      <input type="number" id="gen_frame_${k}" value="0" min="0" class="w-sm">
+      <span style="font-size:12px;color:var(--text3)">人</span>
+    </div>`).join('')}
+
+    <hr class="divider">
+    <div class="card-header" style="margin-top:0"><h3>性别比例</h3></div>
+    <div class="form-row">
+      <label>男性</label><input type="number" id="gen_male" value="80" min="0" max="100" class="w-sm">
+      <span style="font-size:12px;color:var(--text3)">%</span>
+      <label style="margin-left:12px">女性</label><input type="number" id="gen_female" value="20" min="0" max="100" class="w-sm">
+      <span style="font-size:12px;color:var(--text3)">%（其余为その他）</span>
+    </div>
+
+    <hr class="divider">
+    <div class="card-header" style="margin-top:0"><h3>年龄分布</h3></div>
+    <div class="form-row">
+      <label>最小年龄</label><input type="number" id="gen_age_min" value="13" min="6" max="80" class="w-sm">
+      <label style="margin-left:12px">最大年龄</label><input type="number" id="gen_age_max" value="55" min="6" max="80" class="w-sm">
+    </div>
+    <div class="form-row">
+      <label>年轻偏向</label>
+      <input type="range" id="gen_age_skew" min="0" max="10" value="5"
+             oninput="document.getElementById('gen_age_skew_val').textContent=this.value">
+      <span id="gen_age_skew_val" class="wval">5</span>
+      <span style="font-size:11px;color:var(--text3);margin-left:4px">（0=均匀分布，10=强烈偏年轻）</span>
+    </div>
+
+    <hr class="divider">
+    <div class="card-header" style="margin-top:0"><h3>消费金额分布</h3></div>
+    <div class="form-row">
+      <label>最低</label><input type="number" id="gen_spend_min" value="0" min="0" class="w-md">
+      <span style="font-size:12px;color:var(--text3)">円</span>
+      <label style="margin-left:12px">最高</label><input type="number" id="gen_spend_max" value="80000" min="0" class="w-md">
+      <span style="font-size:12px;color:var(--text3)">円</span>
+    </div>
+    <div class="form-row">
+      <label>低消费偏向</label>
+      <input type="range" id="gen_spend_skew" min="0" max="10" value="6"
+             oninput="document.getElementById('gen_spend_skew_val').textContent=this.value">
+      <span id="gen_spend_skew_val" class="wval">6</span>
+      <span style="font-size:11px;color:var(--text3);margin-left:4px">（0=均匀，10=强烈偏低消费）</span>
+    </div>
+    <hr class="divider">
+    <div class="card-header" style="margin-top:0"><h3>握手会消费</h3></div>
+    <div class="form-row">
+      <label>购买人数</label>
+      <input type="number" id="gen_hs_count" value="0" min="0" class="w-sm">
+      <span style="font-size:12px;color:var(--text3)">人（0=不生成）</span>
+    </div>
+    <div class="form-row">
+      <label>金额范围</label>
+      <input type="number" id="gen_hs_min" value="1300" min="0" class="w-md">
+      <span style="font-size:12px;color:var(--text3)">～</span>
+      <input type="number" id="gen_hs_max" value="3000000" min="0" class="w-md">
+      <span style="font-size:12px;color:var(--text3)">円</span>
+    </div>
+
+    <hr class="divider">
+    <div class="card-header" style="margin-top:0"><h3>摇奖消费</h3></div>
+    <div class="form-row">
+      <label>参加人数</label>
+      <input type="number" id="gen_lt_count" value="0" min="0" class="w-sm">
+      <span style="font-size:12px;color:var(--text3)">人（0=不生成）</span>
+    </div>
+    <div class="form-row">
+      <label>消费场所</label>
+      <select id="gen_lt_place" style="width:160px">
+        <option value="劇場内">劇場内</option>
+        <option value="握手会現場">握手会現場</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>金额范围</label>
+      <input type="number" id="gen_lt_min" value="500" min="0" class="w-md">
+      <span style="font-size:12px;color:var(--text3)">～</span>
+      <input type="number" id="gen_lt_max" value="1000000" min="0" class="w-md">
+      <span style="font-size:12px;color:var(--text3)">円</span>
+    </div>
+
+      <hr class="divider">
+      <button class="btn btn-primary" onclick="generateAudiences()">随机生成</button>
+      <span style="font-size:12px;color:var(--text3);margin-left:10px">剩余名额按成员饭人数比例分配推し</span>
+    </div>
 
   <div class="card">
     <details>
@@ -176,11 +269,14 @@ function renderAudiences(el) {
           <label style="min-width:auto;margin-left:8px">年龄</label>
           <input type="number" id="a_age" value="25" min="6" max="80" class="w-sm">
         </div>
-        <div class="form-row">
-          <label>会员类型</label>
-          <select id="a_membertype" style="flex:1">
-            ${MEMBER_TYPE_OPTIONS.map(o => `<option value="${o.value}">${o.label}</option>`).join('')}
-          </select>
+        <div class="form-row" style="align-items:flex-start">
+          <label style="padding-top:6px">会员类型</label>
+          <div style="flex:1">
+            <select id="a_membertype" multiple size="5" style="width:100%">
+              ${FRAME_KEYS.map(k => `<option value="${k}">${FRAME_LABELS[k]}</option>`).join('')}
+            </select>
+            <p style="font-size:11px;color:var(--text3);margin-top:4px">按住 Ctrl/Cmd 可多选，不选任何项则为一般观众</p>
+          </div>
         </div>
         <div class="form-row">
           <label>消费金额</label>
@@ -243,10 +339,12 @@ function refreshAudTable() {
         <td style="font-family:'DM Mono',monospace;font-size:12px">${a.id}</td>
         <td>${a.gender === 'female' ? '女' : a.gender === 'male' ? '男' : '他'}
             <span style="color:var(--text3)">${a.age}歳</span></td>
-        <td>${a.memberType
-          ? `<span class="badge ${FRAME_BADGE[a.memberType] || 'badge-gray'}" style="font-size:10px">${a.memberType}</span>`
-          : '<span style="color:var(--text3);font-size:12px">一般</span>'
-        }</td>
+        <td>${(() => {
+      const types = a.memberTypes || (a.memberType ? [a.memberType] : []);
+      return types.length > 0
+        ? types.map(t => `<span class="badge ${FRAME_BADGE[t] || 'badge-gray'}" style="font-size:10px;margin-right:2px">${t}</span>`).join('')
+        : '<span style="color:var(--text3);font-size:12px">一般</span>';
+    })()}</td>
         <td style="font-family:'DM Mono',monospace;font-size:12px">¥${a.totalSpend.toLocaleString()}</td>
         <td style="font-size:12px">${a.favoriteMembers || '–'}</td>
         <td style="font-size:12px;color:var(--text3)">${a.lastWinDate || '未当選'}</td>
@@ -255,8 +353,8 @@ function refreshAudTable() {
     </tbody>
   </table></div>
   ${DB.audiences.length > 100
-    ? `<p style="font-size:12px;color:var(--text3);padding:8px 10px">只显示前100条，共 ${DB.audiences.length} 人</p>`
-    : ''}`;
+      ? `<p style="font-size:12px;color:var(--text3);padding:8px 10px">只显示前100条，共 ${DB.audiences.length} 人</p>`
+      : ''}`;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -322,97 +420,6 @@ function renderPerformance(el) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 面板：消费设置
-// ═══════════════════════════════════════════════════════════
-
-function renderConsumption(el) {
-  el.innerHTML = `
-  <div class="page-header">
-    <div><h2>消费设置</h2><div class="subtitle">CONSUMPTION ITEMS</div></div>
-  </div>
-
-  <div class="card">
-    <div class="card-header"><h3>添加消费项目</h3></div>
-    <div class="form-row">
-      <label>类型</label>
-      <select id="c_type" onchange="toggleLotteryFields()" style="width:120px">
-        <option value="handshake">握手会</option>
-        <option value="lottery">摇奖</option>
-      </select>
-    </div>
-    <div class="form-row">
-      <label>名称</label>
-      <input type="text" id="c_name" placeholder="握手券 / チェキ抽選" style="flex:1">
-    </div>
-    <div class="form-row">
-      <label>单价</label>
-      <input type="number" id="c_price" value="500" min="0" class="w-md">
-      <span style="font-size:12px;color:var(--text3)">円</span>
-    </div>
-    <div class="form-row">
-      <label>对象成员</label>
-      <select id="c_member" style="flex:1">
-        <option value="全員">全员</option>
-        ${DB.members.map(m => `<option>${m.name}</option>`).join('')}
-      </select>
-    </div>
-    <div id="lottery_extra" style="display:none">
-      <hr class="divider">
-      <div class="form-row">
-        <label>中奖概率</label>
-        <input type="number" id="c_prob" value="10" min="0" max="100" class="w-sm">
-        <span style="font-size:12px;color:var(--text3)">%</span>
-      </div>
-      <div class="form-row">
-        <label>消费场所</label>
-        <input type="text" id="c_place" value="劇場内" style="flex:1">
-      </div>
-    </div>
-    <button class="btn btn-primary" onclick="addConsumption()">＋ 添加</button>
-  </div>
-
-  <div class="card">
-    <div class="card-header">
-      <h3>消费项目列表 (${DB.consumption.length})</h3>
-    </div>
-    <div id="cons_table"></div>
-  </div>`;
-  refreshConsTable();
-}
-
-function toggleLotteryFields() {
-  const t  = document.getElementById('c_type');
-  const el = document.getElementById('lottery_extra');
-  if (t && el) el.style.display = t.value === 'lottery' ? 'block' : 'none';
-}
-
-function refreshConsTable() {
-  const el = document.getElementById('cons_table');
-  if (!el) return;
-  if (!DB.consumption.length) {
-    el.innerHTML = '<div class="empty"><div class="empty-icon">🛒</div>暂无消费项目</div>';
-    return;
-  }
-  el.innerHTML = `
-  <div class="table-wrap"><table>
-    <thead><tr><th>类型</th><th>名称</th><th>单价</th><th>对象成员</th><th>概率/场所</th><th>操作</th></tr></thead>
-    <tbody>
-      ${DB.consumption.map((c, i) => `<tr>
-        <td><span class="badge ${c.type === 'handshake' ? 'badge-blue' : 'badge-amber'}">
-          ${c.type === 'handshake' ? '握手会' : '摇奖'}</span></td>
-        <td>${c.name}</td>
-        <td style="font-family:'DM Mono',monospace">¥${c.price.toLocaleString()}</td>
-        <td>${c.memberName}</td>
-        <td style="font-size:12px;color:var(--text2)">
-          ${c.type === 'lottery' ? c.probability + '% / ' + c.place : '–'}
-        </td>
-        <td><button class="btn btn-danger btn-sm" onclick="delConsumption(${i})">削除</button></td>
-      </tr>`).join('')}
-    </tbody>
-  </table></div>`;
-}
-
-// ═══════════════════════════════════════════════════════════
 // 面板：抽选配置
 // ═══════════════════════════════════════════════════════════
 
@@ -428,18 +435,18 @@ function renderLotteryCfg(el) {
     <div class="card">
       <div class="card-header"><h3>观众当选权重因子</h3></div>
       <p style="font-size:12px;color:var(--text3);margin-bottom:12px">各因子对观众中签概率的加成强度（0 = 无影响，10 = 最强加成）</p>
-      ${makeSliderRow('女性加权',         'wGender',      cfg)}
-      ${makeSliderRow('年轻加权（未满25岁）','wAge',       cfg)}
-      ${makeSliderRow('会员枠综合加权',    'wMember',     cfg)}
-      ${makeSliderRow('久未中签加权',      'wLastWin',    cfg)}
-      ${makeSliderRow('消费金额加权',      'wConsumption',cfg)}
+      ${makeSliderRow('女性加权', 'wGender', cfg)}
+      ${makeSliderRow('年轻加权（未满25岁）', 'wAge', cfg)}
+      ${makeSliderRow('会员枠综合加权', 'wMember', cfg)}
+      ${makeSliderRow('久未中签加权', 'wLastWin', cfg)}
+      ${makeSliderRow('消费金额加权', 'wConsumption', cfg)}
     </div>
 
     <div class="card">
       <div class="card-header"><h3>成员饭权重</h3></div>
       <p style="font-size:12px;color:var(--text3);margin-bottom:12px">推しが参演时的额外加成</p>
       ${makeSliderRow('成员优先度权重', 'wPriority', cfg)}
-      ${makeSliderRow('饭人数权重',     'wFanCount', cfg)}
+      ${makeSliderRow('饭人数权重', 'wFanCount', cfg)}
       <hr class="divider">
       <div class="card-header" style="margin-top:8px"><h3>各会员枠倍率</h3></div>
       <p style="font-size:12px;color:var(--text3);margin-bottom:12px">该枠内观众的基础权重乘数（1–20倍）</p>
@@ -472,8 +479,8 @@ function renderLotteryCfg(el) {
  * @param {number} max
  */
 function makeSliderRow(label, key, obj, min = 0, max = 10) {
-  const val      = obj[key] !== undefined ? obj[key] : 5;
-  const isFrame  = (obj !== DB.lotteryConfig); // 区分是否是 frameWeights
+  const val = obj[key] !== undefined ? obj[key] : 5;
+  const isFrame = (obj !== DB.lotteryConfig); // 区分是否是 frameWeights
   return `
   <div class="weight-row">
     <span class="wlabel">${label}</span>
@@ -486,11 +493,11 @@ function makeSliderRow(label, key, obj, min = 0, max = 10) {
 
 /** 滑块实时同步到 DB */
 function syncSlider(el) {
-  const key     = el.dataset.key;
-  const val     = +el.value;
+  const key = el.dataset.key;
+  const val = +el.value;
   const isFrame = el.dataset.isframe === 'true';
   if (isFrame) DB.lotteryConfig.frameWeights[key] = val;
-  else         DB.lotteryConfig[key] = val;
+  else DB.lotteryConfig[key] = val;
   const span = document.getElementById('wval_' + key);
   if (span) span.textContent = val;
   saveDB('lotteryConfig');
@@ -501,11 +508,11 @@ function syncSlider(el) {
 // ═══════════════════════════════════════════════════════════
 
 function renderRun(el) {
-  const p          = DB.performance;
+  const p = DB.performance;
   const frameTotal = p.frames ? Object.values(p.frames).reduce((s, v) => s + v, 0) : 0;
-  const issues     = [];
+  const issues = [];
   if (!DB.audiences.length) issues.push('观众数据为空');
-  if (!p.capacity)           issues.push('公演席数未设定');
+  if (!p.capacity) issues.push('公演席数未设定');
 
   el.innerHTML = `
   <div class="page-header">
@@ -518,8 +525,8 @@ function renderRun(el) {
     <div class="stat"><div class="stat-val">${frameTotal}</div><div class="stat-lbl">会員枠席数</div></div>
     <div class="stat">
       <div class="stat-val">${DB.audiences.length && p.capacity
-        ? (p.capacity / DB.audiences.length * 100).toFixed(1) + '%'
-        : '–'}</div>
+      ? (p.capacity / DB.audiences.length * 100).toFixed(1) + '%'
+      : '–'}</div>
       <div class="stat-lbl">基础中签率</div>
     </div>
   </div>
@@ -533,10 +540,10 @@ function renderRun(el) {
     </div>
     <div class="tag-list" style="margin-bottom:12px">
       ${p.frames
-        ? Object.entries(p.frames).filter(([, v]) => v > 0).map(([k, v]) =>
-            `<span class="badge ${FRAME_BADGE[k] || 'badge-gray'}">${k} ${v}席</span>`
-          ).join('')
-        : ''}
+      ? Object.entries(p.frames).filter(([, v]) => v > 0).map(([k, v]) =>
+        `<span class="badge ${FRAME_BADGE[k] || 'badge-gray'}">${k} ${v}席</span>`
+      ).join('')
+      : ''}
       <span class="badge badge-gray">一般枠 ${Math.max(0, (p.capacity || 0) - frameTotal)}席</span>
     </div>
     ${issues.length
@@ -571,15 +578,15 @@ function renderLotteryResult(winners, stats) {
     <div class="card-header" style="margin-top:4px"><h3>枠分布</h3></div>
     <div class="tag-list" style="margin-bottom:14px">
       ${Object.entries(stats.frameCounts).map(([k, v]) =>
-        `<span class="badge ${FRAME_BADGE[k] || 'badge-gray'}">${k}: ${v}人 (${(v / stats.winCount * 100).toFixed(0)}%)</span>`
-      ).join('')}
+    `<span class="badge ${FRAME_BADGE[k] || 'badge-gray'}">${k}: ${v}人 (${(v / stats.winCount * 100).toFixed(0)}%)</span>`
+  ).join('')}
     </div>
 
     <div class="card-header"><h3>推し成员分布（当选）</h3></div>
     <div class="tag-list">
       ${Object.entries(stats.memberCounts).sort((a, b) => b[1] - a[1]).map(([k, v]) =>
-        `<span class="badge badge-blue">${k}: ${v}人</span>`
-      ).join('')}
+    `<span class="badge badge-blue">${k}: ${v}人</span>`
+  ).join('')}
     </div>
   </div>
 
@@ -610,10 +617,9 @@ function renderLotteryResult(winners, stats) {
 
 // ── 面板渲染函数映射表（供 switchTab 使用）──────────────────
 const PANEL_RENDERERS = {
-  members:     renderMembers,
-  audiences:   renderAudiences,
+  members: renderMembers,
+  audiences: renderAudiences,
   performance: renderPerformance,
-  consumption: renderConsumption,
   lottery_cfg: renderLotteryCfg,
-  run:         renderRun,
+  run: renderRun,
 };

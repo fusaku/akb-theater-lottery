@@ -32,6 +32,7 @@ function addMember() {
     name,
     priority: parseInt(document.getElementById('m_priority').value) || 5,
     fanCount: parseInt(document.getElementById('m_fancount').value) || 200,
+    generation: document.getElementById('m_generation').value.trim() || null,
   });
   saveDB('members');
   document.getElementById('m_name').value = '';
@@ -74,23 +75,27 @@ function addAudience() {
   const targetStr = document.getElementById('a_targets').value;
   const consumptionTargets = targetStr
     ? targetStr.split(',').map(s => {
-        const [member, amount] = s.split(':');
-        return { member: member.trim(), amount: parseInt(amount) || 0 };
-      })
+      const [member, amount] = s.split(':');
+      return { member: member.trim(), amount: parseInt(amount) || 0 };
+    })
     : [];
 
   DB.audiences.push({
     id,
-    gender:             document.getElementById('a_gender').value,
-    age:                parseInt(document.getElementById('a_age').value) || 25,
-    memberType:         document.getElementById('a_membertype').value,
-    isMember:           !!document.getElementById('a_membertype').value,
-    totalSpend:         parseInt(document.getElementById('a_spend').value) || 0,
-    registeredAt:       document.getElementById('a_reg').value || new Date().toISOString().slice(0, 10),
-    favoriteMembers:    document.getElementById('a_fav').value,
+    gender: document.getElementById('a_gender').value,
+    age: parseInt(document.getElementById('a_age').value) || 25,
+    memberTypes: [...document.getElementById('a_membertype').selectedOptions].map(o => o.value),
+    memberType: [...document.getElementById('a_membertype').selectedOptions].map(o => o.value)[0] || '',
+    isMember: document.getElementById('a_membertype').selectedOptions.length > 0,
+    totalSpend: parseInt(document.getElementById('a_spend').value) || 0,
+    inTheaterConsumed: (parseInt(document.getElementById('a_spend').value) || 0) > 0
+      ? document.getElementById('a_intheater').checked
+      : false,
+    registeredAt: document.getElementById('a_reg').value || new Date().toISOString().slice(0, 10),
+    favoriteMembers: document.getElementById('a_fav').value,
     consumptionTargets,
-    inTheaterConsumed:  document.getElementById('a_intheater').checked,
-    lastWinDate:        document.getElementById('a_lastwin').value || null,
+    inTheaterConsumed: document.getElementById('a_intheater').checked,
+    lastWinDate: document.getElementById('a_lastwin').value || null,
   });
 
   saveDB('audiences');
@@ -102,39 +107,122 @@ function generateAudiences() {
   const n = parseInt(document.getElementById('gen_n').value) || 200;
   if (!DB.members.length) { alert('请先添加成员'); return; }
 
+  // ── 读取参数 ──
+  const gMale     = parseInt(document.getElementById('gen_male').value)      || 50;
+  const gFemale   = parseInt(document.getElementById('gen_female').value)    || 40;
+  const ageMin    = parseInt(document.getElementById('gen_age_min').value)   || 13;
+  const ageMax    = parseInt(document.getElementById('gen_age_max').value)   || 55;
+  const ageSkew   = parseInt(document.getElementById('gen_age_skew').value)  || 5;
+  const spendMin  = parseInt(document.getElementById('gen_spend_min').value) || 0;
+  const spendMax  = parseInt(document.getElementById('gen_spend_max').value) || 80000;
+  const spendSkew = parseInt(document.getElementById('gen_spend_skew').value)|| 6;
+
+  const hsCount = parseInt(document.getElementById('gen_hs_count').value) || 0;
+  const hsMin   = parseInt(document.getElementById('gen_hs_min').value)   || 500;
+  const hsMax   = parseInt(document.getElementById('gen_hs_max').value)   || 5000;
+  const ltCount = parseInt(document.getElementById('gen_lt_count').value) || 0;
+  const ltPlace = document.getElementById('gen_lt_place').value;
+  const ltMin   = parseInt(document.getElementById('gen_lt_min').value)   || 300;
+  const ltMax   = parseInt(document.getElementById('gen_lt_max').value)   || 3000;
+
+  // ── 会員枠配額 ──
+  const frameQuotas = {};
+  let quotaTotal = 0;
+  FRAME_KEYS.forEach(k => {
+    const v = parseInt(document.getElementById('gen_frame_' + k).value) || 0;
+    frameQuotas[k] = v;
+    quotaTotal += v;
+  });
+  if (quotaTotal > n) {
+    alert(`各枠合計(${quotaTotal})が総生成数(${n})を超えています`);
+    return;
+  }
+
+  // ── ヘルパー関数 ──
   const totalFan = DB.members.reduce((s, m) => s + m.fanCount, 0);
 
-  for (let i = 0; i < n; i++) {
-    // 按饭人数比例选喜欢成员
-    let r = Math.random() * totalFan, acc = 0, fav = DB.members[0].name;
+  function pickFav() {
+    let r = Math.random() * totalFan, acc = 0;
     for (const m of DB.members) {
       acc += m.fanCount;
-      if (r < acc) { fav = m.name; break; }
+      if (r < acc) return m.name;
     }
+    return DB.members[0].name;
+  }
 
-    const memberType  = RANDOM_MEMBER_TYPE_POOL[Math.floor(Math.random() * RANDOM_MEMBER_TYPE_POOL.length)];
-    const gender      = RANDOM_GENDER_POOL[Math.floor(Math.random() * RANDOM_GENDER_POOL.length)];
-    const age         = 13 + Math.floor(Math.random() * 42);
-    const totalSpend  = Math.floor(Math.random() * Math.random() * 80000); // 偏低分布
-    const regDaysAgo  = 30 + Math.floor(Math.random() * 1200);
+  function skewedRandom(min, max, skew) {
+    const r      = Math.random();
+    const biased = skew > 0 ? Math.pow(r, 1 + skew * 0.4) : r;
+    return Math.floor(min + biased * (max - min));
+  }
+
+  function pickGender() {
+    const r = Math.random() * 100;
+    if (r < gMale) return 'male';
+    if (r < gMale + gFemale) return 'female';
+    return 'other';
+  }
+
+  function randomSample(total, k) {
+    const arr = Array.from({ length: total }, (_, i) => i);
+    for (let i = 0; i < k; i++) {
+      const j = i + Math.floor(Math.random() * (total - i));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return new Set(arr.slice(0, k));
+  }
+
+  // ── 枠スロット生成 ──
+  const slots = [];
+  FRAME_KEYS.forEach(k => {
+    for (let i = 0; i < frameQuotas[k]; i++) slots.push([k]);
+  });
+  for (let i = slots.length; i < n; i++) slots.push([]);
+
+  // シャッフル
+  for (let i = slots.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [slots[i], slots[j]] = [slots[j], slots[i]];
+  }
+
+  // ── 消費インデックスを事前抽選 ──
+  const hsIndices = randomSample(n, Math.min(hsCount, n));
+  const ltIndices = randomSample(n, Math.min(ltCount, n));
+
+  // ── 観客生成 ──
+  slots.forEach(function(memberTypes, idx) {
+    const age = skewedRandom(ageMin, ageMax, ageSkew);
+
+    const hsSpend = hsIndices.has(idx) ? skewedRandom(hsMin, hsMax, 0) : 0;
+    const ltSpend = ltIndices.has(idx) ? skewedRandom(ltMin, ltMax, 0) : 0;
+    const totalSpend = hsSpend + ltSpend;
+
+    const consumptionTargets = [];
+    if (hsSpend > 0) consumptionTargets.push({ type: 'handshake', member: pickFav(), amount: hsSpend });
+    if (ltSpend > 0) consumptionTargets.push({ type: 'lottery',   member: pickFav(), amount: ltSpend, place: ltPlace });
+
     const hasLastWin  = Math.random() < 0.25;
     const lastWinDate = hasLastWin
       ? new Date(Date.now() - Math.floor(Math.random() * 400) * 86400000).toISOString().slice(0, 10)
       : null;
+    const regDaysAgo = 30 + Math.floor(Math.random() * 1200);
+    const fav = pickFav();
 
     DB.audiences.push({
       id:                `u${(DB.audiences.length + 1).toString().padStart(5, '0')}`,
-      gender, age,
-      memberType,
-      isMember:           !!memberType,
-      totalSpend,
+      gender:             pickGender(),
+      age:                age,
+      memberTypes:        memberTypes,
+      memberType:         memberTypes[0] || '',
+      isMember:           memberTypes.length > 0,
+      totalSpend:         totalSpend,
+      inTheaterConsumed:  totalSpend > 0 ? Math.random() < 0.35 : false,
       registeredAt:       new Date(Date.now() - regDaysAgo * 86400000).toISOString().slice(0, 10),
       favoriteMembers:    fav,
-      consumptionTargets: [{ member: fav, amount: totalSpend }],
-      inTheaterConsumed:  Math.random() < 0.35,
-      lastWinDate,
+      consumptionTargets: consumptionTargets,
+      lastWinDate:        lastWinDate,
     });
-  }
+  });
 
   saveDB('audiences');
   switchTab('audiences');
@@ -171,9 +259,9 @@ function savePerformance() {
   const memberNames = [...document.querySelectorAll('.mtag.selected')].map(t => t.dataset.name);
 
   Object.assign(DB.performance, {
-    name:        document.getElementById('p_name').value,
-    date:        document.getElementById('p_date').value,
-    capacity:    parseInt(document.getElementById('p_capacity').value) || 200,
+    name: document.getElementById('p_name').value,
+    date: document.getElementById('p_date').value,
+    capacity: parseInt(document.getElementById('p_capacity').value) || 200,
     ticketPrice: parseInt(document.getElementById('p_price').value) || 3500,
     frames,
     memberNames,
@@ -192,11 +280,11 @@ function addConsumption() {
   const type = document.getElementById('c_type').value;
   DB.consumption.push({
     type,
-    name:        document.getElementById('c_name').value || (type === 'handshake' ? '握手券' : '摇奖'),
-    price:       parseInt(document.getElementById('c_price').value) || 0,
-    memberName:  document.getElementById('c_member').value,
+    name: document.getElementById('c_name').value || (type === 'handshake' ? '握手券' : '摇奖'),
+    price: parseInt(document.getElementById('c_price').value) || 0,
+    memberName: document.getElementById('c_member').value,
     probability: type === 'lottery' ? parseInt(document.getElementById('c_prob').value) || 10 : 100,
-    place:       type === 'lottery' ? document.getElementById('c_place').value : '劇場',
+    place: type === 'lottery' ? document.getElementById('c_place').value : '劇場',
   });
   saveDB('consumption');
   refreshConsTable();
@@ -216,15 +304,15 @@ function runLottery() {
   if (!DB.audiences.length) { alert('观众数据为空'); return; }
 
   const { allWinners, stats } = runLotteryEngine({
-    audiences:     DB.audiences,
-    performance:   DB.performance,
+    audiences: DB.audiences,
+    performance: DB.performance,
     lotteryConfig: DB.lotteryConfig,
-    members:       DB.members,
+    members: DB.members,
   });
 
   // 更新当选者的最后中签日期
   const winSet = new Set(allWinners.map(w => w.id));
-  const today  = new Date().toISOString().slice(0, 10);
+  const today = new Date().toISOString().slice(0, 10);
   DB.audiences.forEach(a => {
     if (winSet.has(a.id)) a.lastWinDate = today;
   });
@@ -251,7 +339,7 @@ function exportLosersCSV() {
   if (!window._lastWinners) return;
   const winSet = new Set(window._lastWinners.map(w => w.id));
   const losers = DB.audiences.filter(a => !winSet.has(a.id));
-  const rows   = [['ID', '性别', '年龄', '会员类型', '推し', '消费金额']];
+  const rows = [['ID', '性别', '年龄', '会员类型', '推し', '消费金额']];
   losers.forEach(a => rows.push([
     a.id, a.gender, a.age,
     a.memberType || '一般', a.favoriteMembers || '', a.totalSpend,
@@ -262,6 +350,17 @@ function exportLosersCSV() {
 // ═══════════════════════════════════════════════════════════
 // 工具函数
 // ═══════════════════════════════════════════════════════════
+/**
+ * 从 0～n-1 中随机不重复抽取 k 个索引（Fisher-Yates 部分洗牌）
+ */
+function randomSample(n, k) {
+  const arr = Array.from({ length: n }, (_, i) => i);
+  for (let i = 0; i < k; i++) {
+    const j = i + Math.floor(Math.random() * (n - i));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr.slice(0, k);
+}
 
 /**
  * 下载 CSV 文件（BOM 保证 Excel 正确显示中文）。
@@ -269,10 +368,10 @@ function exportLosersCSV() {
  * @param {string}       filename
  */
 function downloadCSV(rows, filename) {
-  const csv  = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-  const a    = document.createElement('a');
-  a.href     = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
   a.download = filename;
   a.click();
 }
@@ -285,18 +384,18 @@ function showToast(msg) {
   const t = document.createElement('div');
   t.textContent = msg;
   Object.assign(t.style, {
-    position:   'fixed',
-    bottom:     '24px',
-    right:      '24px',
+    position: 'fixed',
+    bottom: '24px',
+    right: '24px',
     background: '#1c1c24',
-    border:     '1px solid #a78bfa',
-    color:      '#a78bfa',
-    padding:    '10px 18px',
+    border: '1px solid #a78bfa',
+    color: '#a78bfa',
+    padding: '10px 18px',
     borderRadius: '8px',
-    fontSize:   '13px',
+    fontSize: '13px',
     fontFamily: "'DM Mono', monospace",
-    zIndex:     9999,
-    boxShadow:  '0 4px 20px rgba(0,0,0,0.4)',
+    zIndex: 9999,
+    boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
   });
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 2500);
@@ -313,8 +412,6 @@ Object.assign(window, {
   addAudience, generateAudiences, clearAudiences, exportAudiencesCSV,
   // 公演
   savePerformance,
-  // 消费
-  addConsumption, delConsumption, toggleLotteryFields,
   // 抽选
   runLottery, exportWinnersCSV, exportLosersCSV,
   // utils

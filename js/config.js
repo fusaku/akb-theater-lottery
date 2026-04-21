@@ -15,7 +15,6 @@ const TABS = [
   { id: 'members',     label: '成员设置', icon: '👤' },
   { id: 'audiences',   label: '观众管理', icon: '👥' },
   { id: 'performance', label: '公演设置', icon: '🎭' },
-  { id: 'consumption', label: '消费设置', icon: '🛒' },
   { id: 'lottery_cfg', label: '抽选配置', icon: '⚙️' },
   { id: 'run',         label: '执行抽选', icon: '🎯' },
 ];
@@ -68,14 +67,14 @@ const RANDOM_GENDER_POOL = [
 
 /** 载入默认成员时使用的数据 */
 const DEFAULT_MEMBERS = [
-  { name: '橋本陽菜', priority: 9, fanCount: 850 },
-  { name: '岡部麟',   priority: 8, fanCount: 720 },
-  { name: '山内瑞葵', priority: 7, fanCount: 610 },
-  { name: '小栗有以', priority: 8, fanCount: 680 },
-  { name: '向井地美音',priority: 7, fanCount: 590 },
-  { name: '本田仁美', priority: 6, fanCount: 420 },
-  { name: '倉野尾成美',priority: 6, fanCount: 380 },
-  { name: '大盛真歩', priority: 5, fanCount: 310 },
+  { name: '橋本陽菜', priority: 9, fanCount: 850, generation: 'Team8' },
+  { name: '岡部麟',   priority: 8, fanCount: 720, generation: 'Team8' },
+  { name: '山内瑞葵', priority: 7, fanCount: 610, generation: '16' },
+  { name: '小栗有以', priority: 8, fanCount: 680, generation: 'Team8' },
+  { name: '向井地美音',priority: 7, fanCount: 590, generation: '16' },
+  { name: '本田仁美', priority: 6, fanCount: 420, generation: 'Team8' },
+  { name: '倉野尾成美',priority: 6, fanCount: 380, generation: 'Team8' },
+  { name: '大盛真歩', priority: 5, fanCount: 310, generation: 'D3' },
 ];
 
 /** 会员枠 select 下拉选项（含"一般"） */
