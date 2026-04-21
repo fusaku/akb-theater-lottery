@@ -48,6 +48,12 @@ function delMember(i) {
   refreshBadge('members');
 }
 
+function updateMemberField(i, field, value) {
+  DB.members[i][field] = value;
+  saveDB('members');
+  showToast(`已保存：${DB.members[i].name}`);
+}
+
 function clearMembers() {
   if (!confirm('确定清空所有成员？')) return;
   DB.members = [];
@@ -108,22 +114,22 @@ function generateAudiences() {
   if (!DB.members.length) { alert('请先添加成员'); return; }
 
   // ── 读取参数 ──
-  const gMale     = parseInt(document.getElementById('gen_male').value)      || 50;
-  const gFemale   = parseInt(document.getElementById('gen_female').value)    || 40;
-  const ageMin    = parseInt(document.getElementById('gen_age_min').value)   || 13;
-  const ageMax    = parseInt(document.getElementById('gen_age_max').value)   || 55;
-  const ageSkew   = parseInt(document.getElementById('gen_age_skew').value)  || 5;
-  const spendMin  = parseInt(document.getElementById('gen_spend_min').value) || 0;
-  const spendMax  = parseInt(document.getElementById('gen_spend_max').value) || 80000;
-  const spendSkew = parseInt(document.getElementById('gen_spend_skew').value)|| 6;
+  const gMale = parseInt(document.getElementById('gen_male').value) || 50;
+  const gFemale = parseInt(document.getElementById('gen_female').value) || 40;
+  const ageMin = parseInt(document.getElementById('gen_age_min').value) || 13;
+  const ageMax = parseInt(document.getElementById('gen_age_max').value) || 55;
+  const ageSkew = parseInt(document.getElementById('gen_age_skew').value) || 5;
+  const spendMin = parseInt(document.getElementById('gen_spend_min').value) || 0;
+  const spendMax = parseInt(document.getElementById('gen_spend_max').value) || 80000;
+  const spendSkew = parseInt(document.getElementById('gen_spend_skew').value) || 6;
 
   const hsCount = parseInt(document.getElementById('gen_hs_count').value) || 0;
-  const hsMin   = parseInt(document.getElementById('gen_hs_min').value)   || 500;
-  const hsMax   = parseInt(document.getElementById('gen_hs_max').value)   || 5000;
+  const hsMin = parseInt(document.getElementById('gen_hs_min').value) || 500;
+  const hsMax = parseInt(document.getElementById('gen_hs_max').value) || 5000;
   const ltCount = parseInt(document.getElementById('gen_lt_count').value) || 0;
   const ltPlace = document.getElementById('gen_lt_place').value;
-  const ltMin   = parseInt(document.getElementById('gen_lt_min').value)   || 300;
-  const ltMax   = parseInt(document.getElementById('gen_lt_max').value)   || 3000;
+  const ltMin = parseInt(document.getElementById('gen_lt_min').value) || 300;
+  const ltMax = parseInt(document.getElementById('gen_lt_max').value) || 3000;
 
   // ── 会員枠配額 ──
   const frameQuotas = {};
@@ -151,7 +157,7 @@ function generateAudiences() {
   }
 
   function skewedRandom(min, max, skew) {
-    const r      = Math.random();
+    const r = Math.random();
     const biased = skew > 0 ? Math.pow(r, 1 + skew * 0.4) : r;
     return Math.floor(min + biased * (max - min));
   }
@@ -190,7 +196,7 @@ function generateAudiences() {
   const ltIndices = randomSample(n, Math.min(ltCount, n));
 
   // ── 観客生成 ──
-  slots.forEach(function(memberTypes, idx) {
+  slots.forEach(function (memberTypes, idx) {
     const age = skewedRandom(ageMin, ageMax, ageSkew);
 
     const hsSpend = hsIndices.has(idx) ? skewedRandom(hsMin, hsMax, 0) : 0;
@@ -199,9 +205,9 @@ function generateAudiences() {
 
     const consumptionTargets = [];
     if (hsSpend > 0) consumptionTargets.push({ type: 'handshake', member: pickFav(), amount: hsSpend });
-    if (ltSpend > 0) consumptionTargets.push({ type: 'lottery',   member: pickFav(), amount: ltSpend, place: ltPlace });
+    if (ltSpend > 0) consumptionTargets.push({ type: 'lottery', member: pickFav(), amount: ltSpend, place: ltPlace });
 
-    const hasLastWin  = Math.random() < 0.25;
+    const hasLastWin = Math.random() < 0.25;
     const lastWinDate = hasLastWin
       ? new Date(Date.now() - Math.floor(Math.random() * 400) * 86400000).toISOString().slice(0, 10)
       : null;
@@ -209,18 +215,18 @@ function generateAudiences() {
     const fav = pickFav();
 
     DB.audiences.push({
-      id:                `u${(DB.audiences.length + 1).toString().padStart(5, '0')}`,
-      gender:             pickGender(),
-      age:                age,
-      memberTypes:        memberTypes,
-      memberType:         memberTypes[0] || '',
-      isMember:           memberTypes.length > 0,
-      totalSpend:         totalSpend,
-      inTheaterConsumed:  totalSpend > 0 ? Math.random() < 0.35 : false,
-      registeredAt:       new Date(Date.now() - regDaysAgo * 86400000).toISOString().slice(0, 10),
-      favoriteMembers:    fav,
+      id: `u${(DB.audiences.length + 1).toString().padStart(5, '0')}`,
+      gender: pickGender(),
+      age: age,
+      memberTypes: memberTypes,
+      memberType: memberTypes[0] || '',
+      isMember: memberTypes.length > 0,
+      totalSpend: totalSpend,
+      inTheaterConsumed: totalSpend > 0 ? Math.random() < 0.35 : false,
+      registeredAt: new Date(Date.now() - regDaysAgo * 86400000).toISOString().slice(0, 10),
+      favoriteMembers: fav,
       consumptionTargets: consumptionTargets,
-      lastWinDate:        lastWinDate,
+      lastWinDate: lastWinDate,
     });
   });
 
@@ -265,6 +271,16 @@ function savePerformance() {
     ticketPrice: parseInt(document.getElementById('p_price').value) || 3500,
     frames,
     memberNames,
+    priorityOverrides: (() => {
+      const overrides = {};
+      DB.members.forEach(m => {
+        const inp = document.getElementById('perf_pri_' + m.name);
+        if (inp && inp.value.trim() !== '') {
+          overrides[m.name] = parseInt(inp.value);
+        }
+      });
+      return overrides;
+    })(),
   });
 
   saveDB('performance');
@@ -362,6 +378,13 @@ function randomSample(n, k) {
   return arr.slice(0, k);
 }
 
+function switchLang(lang) {
+  currentLang = lang;
+  localStorage.setItem('sim_lang', lang);
+  buildNav();
+  switchTab(currentTab);
+}
+
 /**
  * 下载 CSV 文件（BOM 保证 Excel 正确显示中文）。
  * @param {Array<Array>} rows
@@ -405,9 +428,9 @@ function showToast(msg) {
 // （纯模块化项目可以改成 import/export，GitHub Pages 直接引用脚本则需要这样）
 Object.assign(window, {
   // 导航
-  switchTab, syncSlider,
+  switchTab, syncSlider,switchLang,
   // 成员
-  addMember, delMember, clearMembers, loadDefaultMembers,
+  addMember, delMember, clearMembers, loadDefaultMembers,updateMemberField,
   // 观众
   addAudience, generateAudiences, clearAudiences, exportAudiencesCSV,
   // 公演

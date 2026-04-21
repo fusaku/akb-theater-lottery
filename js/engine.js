@@ -53,7 +53,12 @@ function calcWeight(audience, cfg, perfMemberSet, members) {
   if ((cfg.wPriority > 0 || cfg.wFanCount > 0) && a.favoriteMembers) {
     const favMember = members.find(m => m.name === a.favoriteMembers);
     if (favMember && perfMemberSet.has(favMember.name)) {
-      w += cfg.wPriority * favMember.priority * 0.05;
+      // 优先使用公演级别的覆盖优先度，没有则用成员全局优先度
+      const overrides = (typeof DB !== 'undefined' && DB.performance.priorityOverrides) || {};
+      const priority = overrides[favMember.name] !== undefined
+        ? overrides[favMember.name]
+        : favMember.priority;
+      w += cfg.wPriority * priority * 0.05;
       w += cfg.wFanCount * Math.log10(favMember.fanCount + 1) * 0.1;
     }
   }

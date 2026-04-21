@@ -18,16 +18,25 @@ let currentTab = 'members';
 /** 构建侧边栏导航按钮 */
 function buildNav() {
   const nav = document.getElementById('nav');
-  nav.innerHTML = TABS.map(t => `
-    <button class="nav-btn ${t.id === currentTab ? 'active' : ''}"
-            id="navbtn_${t.id}"
-            onclick="switchTab('${t.id}')">
-      <span class="icon">${t.icon}</span>
-      <span>${t.label}</span>
-      ${t.id === 'members' ? `<span class="nav-badge" id="badge_members">${DB.members.length}</span>` : ''}
-      ${t.id === 'audiences' ? `<span class="nav-badge" id="badge_audiences">${DB.audiences.length}</span>` : ''}
+  nav.innerHTML = TABS.map(t_tab => `
+    <button class="nav-btn ${t_tab.id === currentTab ? 'active' : ''}"
+            id="navbtn_${t_tab.id}"
+            onclick="switchTab('${t_tab.id}')">
+      <span class="icon">${t_tab.icon}</span>
+      <span>${t(t_tab.labelKey)}</span>
+      ${t_tab.id === 'members'   ? `<span class="nav-badge" id="badge_members">${DB.members.length}</span>`   : ''}
+      ${t_tab.id === 'audiences' ? `<span class="nav-badge" id="badge_audiences">${DB.audiences.length}</span>` : ''}
     </button>
   `).join('');
+
+  // 语言切换按钮
+  const footer = document.getElementById('sidebar-lang');
+  if (footer) {
+    footer.innerHTML = `
+      <button class="btn btn-sm ${currentLang==='zh'?'btn-primary':''}" onclick="switchLang('zh')">中文</button>
+      <button class="btn btn-sm ${currentLang==='ja'?'btn-primary':''}" onclick="switchLang('ja')">日本語</button>
+    `;
+  }
   updateFooter();
 }
 
@@ -121,9 +130,18 @@ function refreshMemberTable() {
       ${DB.members.map((m, i) => `<tr>
         <td style="color:var(--text3);font-family:'DM Mono',monospace">${String(i + 1).padStart(2, '0')}</td>
         <td style="font-weight:500">${m.name}</td>
-        <td><span class="badge badge-purple">P${m.priority}</span></td>
-        <td style="font-family:'DM Mono',monospace;color:var(--text2)">${m.fanCount.toLocaleString()}</td>
-        <td style="color:var(--text2)">${m.generation ? m.generation + '期' : '–'}</td>
+        <td>
+          <input type="number" value="${m.priority}" min="1" max="10" class="w-sm"
+                 onchange="updateMemberField(${i}, 'priority', +this.value)">
+        </td>
+        <td>
+          <input type="number" value="${m.fanCount}" min="0" class="w-md"
+                 onchange="updateMemberField(${i}, 'fanCount', +this.value)">
+        </td>
+        <td>
+          <input type="text" value="${m.generation || ''}" placeholder="–" class="w-md"
+                 onchange="updateMemberField(${i}, 'generation', this.value.trim() || null)">
+        </td>
         <td><button class="btn btn-danger btn-sm" onclick="delMember(${i})">削除</button></td>
       </tr>`).join('')}
     </tbody>
@@ -164,12 +182,26 @@ function renderAudiences(el) {
     <hr class="divider">
     <div class="card-header" style="margin-top:0"><h3>会员枠分配（人数）</h3></div>
     <p style="font-size:12px;color:var(--text3);margin-bottom:10px">留空或0则不生成该枠，剩余自动分配为一般观众</p>
-    ${FRAME_KEYS.map(k => `
-    <div class="form-row">
-      <label style="min-width:130px;font-size:12px">${FRAME_LABELS[k]}</label>
-      <input type="number" id="gen_frame_${k}" value="0" min="0" class="w-sm">
-      <span style="font-size:12px;color:var(--text3)">人</span>
-    </div>`).join('')}
+    ${FRAME_KEYS.map(k => {
+    // 定义每个枠对应的默认生成人数
+    const defaultCounts = {
+      '映像倉庫': 500,
+      '柱の会': 1000,
+      '百発98中': 10,
+      '女性小中学生': 100,
+      'ファミリーカップル': 100
+    };
+
+    // 获取当前枠的默认值，如果没有定义则默认为0
+    const defaultVal = defaultCounts[k] || 0;
+
+    return `
+          <div class="form-row">
+            <label style="min-width:130px;font-size:12px">${FRAME_LABELS[k]}</label>
+            <input type="number" id="gen_frame_${k}" value="${defaultVal}" min="0" class="w-sm">
+            <span style="font-size:12px;color:var(--text3)">人</span>
+          </div>`;
+  }).join('')}
 
     <hr class="divider">
     <div class="card-header" style="margin-top:0"><h3>性别比例</h3></div>
@@ -213,7 +245,7 @@ function renderAudiences(el) {
     <div class="card-header" style="margin-top:0"><h3>握手会消费</h3></div>
     <div class="form-row">
       <label>购买人数</label>
-      <input type="number" id="gen_hs_count" value="0" min="0" class="w-sm">
+      <input type="number" id="gen_hs_count" value="1500" min="0" class="w-sm">
       <span style="font-size:12px;color:var(--text3)">人（0=不生成）</span>
     </div>
     <div class="form-row">
@@ -228,7 +260,7 @@ function renderAudiences(el) {
     <div class="card-header" style="margin-top:0"><h3>摇奖消费</h3></div>
     <div class="form-row">
       <label>参加人数</label>
-      <input type="number" id="gen_lt_count" value="0" min="0" class="w-sm">
+      <input type="number" id="gen_lt_count" value="200" min="0" class="w-sm">
       <span style="font-size:12px;color:var(--text3)">人（0=不生成）</span>
     </div>
     <div class="form-row">
@@ -363,6 +395,8 @@ function refreshAudTable() {
 
 function renderPerformance(el) {
   const p = DB.performance;
+  const selectedNames = (p.memberNames && p.memberNames.length > 0) ? p.memberNames : [];
+
   el.innerHTML = `
   <div class="page-header">
     <div><h2>公演设置</h2><div class="subtitle">PERFORMANCE CONFIGURATION</div></div>
@@ -406,17 +440,65 @@ function renderPerformance(el) {
 
   <div class="card">
     <div class="card-header"><h3>参演成员</h3></div>
-    <p style="font-size:12px;color:var(--text3);margin-bottom:10px">点击选择本次公演的参演成员（影响成员偏好的观众权重）</p>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:10px">
+      点击选择本次公演的参演成员，未选择任何人时抽选不考虑成员偏好权重
+    </p>
     ${DB.members.length
-      ? `<div class="tag-list" id="member_tags">
+      ? `<div class="tag-list">
           ${DB.members.map(m => `
-          <span class="mtag ${(p.memberNames || []).includes(m.name) ? 'selected' : ''}"
-                data-name="${m.name}" onclick="this.classList.toggle('selected')">
+          <span class="mtag ${selectedNames.includes(m.name) ? 'selected' : ''}"
+                data-name="${m.name}"
+                onclick="this.classList.toggle('selected'); refreshPriorityOverrides()">
             ${m.name}
           </span>`).join('')}
         </div>`
-      : '<div class="empty" style="padding:12px">请先在成员设置中添加成员</div>'}
+      : '<div class="empty" style="padding:12px">请先在成员设置中添加成员</div>'
+    }
+  </div>
+
+  <div class="card" id="priority_overrides_card">
+    <div class="card-header"><h3>本次公演优先度覆盖</h3></div>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:12px">
+      留空则使用成员全局优先度，填入数值后仅对本次公演生效
+    </p>
+    <div id="priority_overrides_list">
+      ${renderPriorityOverrideRows(selectedNames, p.priorityOverrides || {})}
+    </div>
   </div>`;
+}
+
+// 生成优先度覆盖的行列表（供初始渲染和点击tag时刷新用）
+function renderPriorityOverrideRows(selectedNames, overrides) {
+  if (!selectedNames.length) {
+    return '<p style="font-size:12px;color:var(--text3)">请先在上方选择参演成员</p>';
+  }
+  return selectedNames.map(name => {
+    const member = DB.members.find(m => m.name === name);
+    if (!member) return '';
+    return `
+    <div class="form-row">
+      <label style="min-width:100px">${member.name}</label>
+      <span style="font-size:11px;color:var(--text3);margin-right:4px">全局: P${member.priority}</span>
+      <input type="number" id="perf_pri_${member.name}" min="1" max="10" class="w-sm"
+             placeholder="${member.priority}"
+             value="${overrides[member.name] || ''}">
+    </div>`;
+  }).join('');
+}
+
+// 点击成员tag时刷新优先度覆盖列表
+function refreshPriorityOverrides() {
+  const selectedNames = [...document.querySelectorAll('.mtag.selected')].map(t => t.dataset.name);
+  const currentOverrides = {};
+  // 保留已填入的值
+  DB.members.forEach(m => {
+    const inp = document.getElementById('perf_pri_' + m.name);
+    if (inp && inp.value.trim() !== '') {
+      currentOverrides[m.name] = parseInt(inp.value);
+    }
+  });
+  const list = document.getElementById('priority_overrides_list');
+  if (list) list.innerHTML = renderPriorityOverrideRows(selectedNames, currentOverrides);
 }
 
 // ═══════════════════════════════════════════════════════════
