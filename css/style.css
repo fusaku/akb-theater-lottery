@@ -367,3 +367,119 @@ details .detail-body { margin-top: 12px; }
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+@media (max-width: 768px) {
+
+  /* 整体布局改为上下结构 */
+  #app {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+  }
+
+  /* 侧边栏变成顶部横向导航 */
+  #sidebar {
+    width: 100%;
+    min-width: unset;
+    flex-direction: column;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar-logo {
+    padding: 12px 16px 10px;
+  }
+
+  .sidebar-nav {
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 4px 8px;
+    gap: 2px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* 隐藏导航按钮的文字，只显示图标 */
+  .nav-btn {
+    flex-direction: column;
+    padding: 6px 10px;
+    gap: 2px;
+    flex-shrink: 0;
+    font-size: 10px;
+    min-width: 52px;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .nav-btn .icon {
+    font-size: 18px;
+  }
+
+  .nav-badge {
+    margin-left: 0;
+    font-size: 9px;
+  }
+
+  .sidebar-footer,
+  #sidebar-lang {
+    display: none;
+  }
+
+  /* 主内容区 */
+  #main {
+    padding: 12px;
+    overflow-y: visible;
+    height: auto;
+  }
+
+  /* 所有 grid 折成单列 */
+  .grid2,
+  .grid3,
+  .grid4 {
+    grid-template-columns: 1fr;
+  }
+
+  /* 表单行在窄屏下允许换行 */
+  .form-row {
+    flex-wrap: wrap;
+  }
+
+  .form-row label {
+    min-width: 60px;
+  }
+
+  /* 输入框宽度放开 */
+  input.w-sm,
+  input.w-md {
+    width: 100%;
+    max-width: 120px;
+  }
+
+  /* 页面标题区允许换行 */
+  .page-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* 表格横向滚动 */
+  .table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* 权重滑块 label 缩短 */
+  .weight-row .wlabel {
+    min-width: 100px;
+    font-size: 11px;
+  }
+
+  /* card 间距缩小 */
+  .card {
+    padding: 12px;
+  }
+
+  /* stat 数字小一点 */
+  .stat-val {
+    font-size: 18px;
+  }
+}
