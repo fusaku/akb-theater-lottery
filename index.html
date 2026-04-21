@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AKB劇場 抽選シミュレーター</title>
+
+  <!-- スタイル -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ── サイドバー ── -->
+  <aside id="sidebar">
+    <div class="sidebar-logo">
+      <h1>劇場抽選</h1>
+      <p>Simulator v1.0</p>
+    </div>
+    <nav class="sidebar-nav" id="nav"></nav>
+    <div class="sidebar-footer" id="footer-info">0 obs / 0 seats</div>
+  </aside>
+
+  <!-- ── メインコンテンツ ── -->
+  <main id="main"></main>
+
+</div>
+
+<!--
+  スクリプト読み込み順序：
+    1. db.js      — DB オブジェクトを定義（他モジュールが参照）
+    2. config.js  — 定数・TABS を定義
+    3. engine.js  — 純粋な抽選アルゴリズム
+    4. ui.js      — DOM レンダリング関数
+    5. app.js     — 初期化・イベントバインド（最後に実行）
+-->
+<script src="js/db.js"></script>
+<script src="js/config.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>
