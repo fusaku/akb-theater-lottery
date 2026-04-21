@@ -51,11 +51,11 @@ function switchTab(id) {
   main.innerHTML = '';
   const panel = document.createElement('div');
   panel.className = 'panel active';
+  main.appendChild(panel);   // ← 先挂到 DOM
 
-  // 每个 tab 对应的渲染函数由 PANEL_RENDERERS 映射
   const renderer = PANEL_RENDERERS[id];
-  if (renderer) renderer(panel);
-  main.appendChild(panel);
+  if (renderer) renderer(panel);  // ← 再渲染
+
   updateFooter();
 }
 
