@@ -53,6 +53,7 @@ const DB_DEFAULTS = {
   },
 
   winLog: [],   // 格式：[{ id, frame, date, perfName }]
+  lotteryCount: 0,
 };
 
 /**
@@ -124,4 +125,5 @@ const DB = {
   consumption: loadDB('consumption'),
   lotteryConfig: loadDB('lotteryConfig'),
   winLog: loadDB('winLog'),
+  lotteryCount: loadDB('lotteryCount'),
 };

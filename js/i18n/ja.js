@@ -204,4 +204,5 @@ window.I18N_JA = {
   run_observe_no_log: '当選履歴なし',
   run_observe_frame: '枠',
   run_observe_date: '日付',
+  run_lottery_count: '抽選回数',
 };

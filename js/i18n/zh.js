@@ -204,4 +204,5 @@ window.I18N_ZH = {
     run_observe_no_log: '暂无当选记录',
     run_observe_frame: '枠',
     run_observe_date: '日期',
+    run_lottery_count: '已抽选次数',
 };

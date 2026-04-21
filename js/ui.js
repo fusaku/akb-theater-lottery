@@ -646,7 +646,13 @@ function renderRun(el) {
       ? `<div style="background:var(--red-dim);border:1px solid var(--red);border-radius:var(--radius-sm);padding:10px 12px;font-size:12px;color:var(--red)">
           注意：${issues.join('；')}
         </div>`
-      : `<button class="btn btn-primary btn-lg" onclick="runLottery()">${t('run_start')}</button>`}
+      : `<div style="display:flex;align-items:center;gap:16px">
+          <button class="btn btn-primary btn-lg" onclick="runLottery()">${t('run_start')}</button>
+          <div>
+            <span style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:var(--accent)" id="lottery_count">${DB.lotteryCount || 0}</span>
+            <span style="font-size:12px;color:var(--text3);margin-left:4px">${t('run_lottery_count')}</span>
+          </div>
+        </div>`}
   </div>
   <div class="card">
     <div class="card-header"><h3>${t('run_observe_title')}</h3></div>
@@ -726,8 +732,8 @@ function renderLotteryResult(winners, stats) {
   </div>`;
 }
 function observeAccount() {
-  const id  = document.getElementById('observe_id').value.trim();
-  const el  = document.getElementById('observe_result');
+  const id = document.getElementById('observe_id').value.trim();
+  const el = document.getElementById('observe_result');
   if (!id || !el) return;
 
   const audience = DB.audiences.find(a => a.id === id);
@@ -768,11 +774,10 @@ function observeAccount() {
     <div style="font-size:12px;color:var(--text2);margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap">
       <span>${t('run_observe_id')}：<strong style="color:var(--text)">${audience.id}</strong></span>
       <span style="color:var(--text3)">|</span>
-      <span>${t('run_observe_member')}：${
-        types.length > 0
-          ? types.map(type => `<span class="badge ${FRAME_BADGE[type] || 'badge-gray'}" style="font-size:10px">${type}</span>`).join(' ')
-          : t('aud_general')
-      }</span>
+      <span>${t('run_observe_member')}：${types.length > 0
+      ? types.map(type => `<span class="badge ${FRAME_BADGE[type] || 'badge-gray'}" style="font-size:10px">${type}</span>`).join(' ')
+      : t('aud_general')
+    }</span>
       <span style="color:var(--text3)">|</span>
       <span>${t('run_observe_lastwin')}：${audience.lastWinDate || t('aud_not_won')}</span>
       <span style="color:var(--text3)">|</span>

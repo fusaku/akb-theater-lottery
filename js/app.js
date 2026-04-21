@@ -314,6 +314,10 @@ function savePerformance() {
 
 function runLottery() {
   if (!DB.audiences.length) { alert('观众数据为空'); return; }
+  DB.lotteryCount = (DB.lotteryCount || 0) + 1;
+  saveDB('lotteryCount');
+  const countEl = document.getElementById('lottery_count');
+  if (countEl) countEl.textContent = DB.lotteryCount;
 
   const { allWinners, stats } = runLotteryEngine({
     audiences: DB.audiences,
@@ -444,7 +448,7 @@ Object.assign(window, {
   // 公演
   savePerformance,
   // 抽选
-  runLottery, exportWinnersCSV, exportLosersCSV,observeAccount,
+  runLottery, exportWinnersCSV, exportLosersCSV, observeAccount,
   // utils
   showToast, downloadCSV,
 });
