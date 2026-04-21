@@ -130,7 +130,7 @@ const MEMBER_TYPE_OPTIONS = [
   { value: 'ファミリーカップル',   label: 'ファミリー・カップル枠' },
 ];
 
-let currentLang = localStorage.getItem('sim_lang') || 'zh';
+let currentLang = localStorage.getItem('sim_lang') || 'ja';
 
 function t(key) {
   const pack = currentLang === 'ja' ? window.I18N_JA : window.I18N_ZH;
