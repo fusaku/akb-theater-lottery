@@ -24,10 +24,10 @@ const DB_DEFAULTS = {
     ticketPrice: 4100,
     memberNames: [],
     frames: {
-      '映像倉庫':       80,
-      '柱の会':         70,
-      '百発98中':       50,
-      '女性小中学生':    10,
+      '映像倉庫': 80,
+      '柱の会': 70,
+      '百発98中': 50,
+      '女性小中学生': 10,
       'ファミリーカップル': 10,
     },
   },
@@ -35,22 +35,24 @@ const DB_DEFAULTS = {
   consumption: [],
 
   lotteryConfig: {
-    wGender:      3,   // 女性加权
-    wAge:         2,   // 年轻加权（未满25岁）
-    wMember:      5,   // 会员枠综合加权
-    wLastWin:     5,   // 久未中签加权
+    wGender: 3,   // 女性加权
+    wAge: 2,   // 年轻加权（未满25岁）
+    wMember: 5,   // 会员枠综合加权
+    wLastWin: 5,   // 久未中签加权
     wConsumption: 4,   // 消费金额加权
-    wFanCount:    3,   // 饭人数加权
-    wPriority:    4,   // 成员优先度加权
+    wFanCount: 3,   // 饭人数加权
+    wPriority: 4,   // 成员优先度加权
     frameWeights: {
-      '映像倉庫':          3,
-      '柱の会':            3,
-      '百発98中':          5,
-      '女性小中学生':       2,
-      'ファミリーカップル':  2,
+      '映像倉庫': 3,
+      '柱の会': 3,
+      '百発98中': 5,
+      '女性小中学生': 2,
+      'ファミリーカップル': 2,
     },
     overflow: true,    // 枠不满时是否将剩余席位并入一般枠
   },
+
+  winLog: [],   // 格式：[{ id, frame, date, perfName }]
 };
 
 /**
@@ -116,9 +118,10 @@ function importAllDB(jsonStr) {
 
 /** 全局数据对象——所有模块均通过此对象读写数据 */
 const DB = {
-  members:       loadDB('members'),
-  audiences:     loadDB('audiences'),
-  performance:   loadDB('performance'),
-  consumption:   loadDB('consumption'),
+  members: loadDB('members'),
+  audiences: loadDB('audiences'),
+  performance: loadDB('performance'),
+  consumption: loadDB('consumption'),
   lotteryConfig: loadDB('lotteryConfig'),
+  winLog: loadDB('winLog'),
 };

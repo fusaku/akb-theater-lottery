@@ -330,6 +330,18 @@ function runLottery() {
   });
   saveDB('audiences');
 
+  // 写入当选记录
+  if (!DB.winLog) DB.winLog = [];
+  allWinners.forEach(w => {
+    DB.winLog.push({
+      id: w.id,
+      frame: w._frame,
+      date: today,
+      perfName: DB.performance.name || '',
+    });
+  });
+  saveDB('winLog');
+
   // 缓存结果供导出使用
   window._lastWinners = allWinners;
 
@@ -432,7 +444,7 @@ Object.assign(window, {
   // 公演
   savePerformance,
   // 抽选
-  runLottery, exportWinnersCSV, exportLosersCSV,
+  runLottery, exportWinnersCSV, exportLosersCSV,observeAccount,
   // utils
   showToast, downloadCSV,
 });

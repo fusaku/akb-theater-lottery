@@ -24,7 +24,7 @@ function buildNav() {
             onclick="switchTab('${t_tab.id}')">
       <span class="icon">${t_tab.icon}</span>
       <span>${t(t_tab.labelKey)}</span>
-      ${t_tab.id === 'members'   ? `<span class="nav-badge" id="badge_members">${DB.members.length}</span>`   : ''}
+      ${t_tab.id === 'members' ? `<span class="nav-badge" id="badge_members">${DB.members.length}</span>` : ''}
       ${t_tab.id === 'audiences' ? `<span class="nav-badge" id="badge_audiences">${DB.audiences.length}</span>` : ''}
     </button>
   `).join('');
@@ -33,8 +33,8 @@ function buildNav() {
   const footer = document.getElementById('sidebar-lang');
   if (footer) {
     footer.innerHTML = `
-      <button class="btn btn-sm ${currentLang==='zh'?'btn-primary':''}" onclick="switchLang('zh')">中文</button>
-      <button class="btn btn-sm ${currentLang==='ja'?'btn-primary':''}" onclick="switchLang('ja')">日本語</button>
+      <button class="btn btn-sm ${currentLang === 'zh' ? 'btn-primary' : ''}" onclick="switchLang('zh')">中文</button>
+      <button class="btn btn-sm ${currentLang === 'ja' ? 'btn-primary' : ''}" onclick="switchLang('ja')">日本語</button>
     `;
   }
   updateFooter();
@@ -648,6 +648,14 @@ function renderRun(el) {
         </div>`
       : `<button class="btn btn-primary btn-lg" onclick="runLottery()">${t('run_start')}</button>`}
   </div>
+  <div class="card">
+    <div class="card-header"><h3>${t('run_observe_title')}</h3></div>
+    <div class="form-row">
+      <input type="text" id="observe_id" placeholder="${t('run_observe_ph')}" style="flex:1">
+      <button class="btn btn-primary" onclick="observeAccount()">${t('run_observe_btn')}</button>
+    </div>
+    <div id="observe_result"></div>
+  </div>
 
   <div id="lottery_result"></div>`;
 }
@@ -715,6 +723,80 @@ function renderLotteryResult(winners, stats) {
         </tr>`).join('')}
       </tbody>
     </table></div>
+  </div>`;
+}
+function observeAccount() {
+  const id  = document.getElementById('observe_id').value.trim();
+  const el  = document.getElementById('observe_result');
+  if (!id || !el) return;
+
+  const audience = DB.audiences.find(a => a.id === id);
+  if (!audience) {
+    el.innerHTML = `<p style="font-size:13px;color:var(--red);margin-top:8px">${t('run_observe_not_found')}</p>`;
+    return;
+  }
+
+  // 从 winLog 里找该账号的所有当选记录
+  const logs = (DB.winLog || []).filter(w => w.id === id);
+
+  const types = audience.memberTypes || (audience.memberType ? [audience.memberType] : []);
+
+  el.innerHTML = `
+  <div style="margin-top:12px">
+    <div class="grid4" style="margin-bottom:12px">
+      <div class="stat">
+        <div class="stat-val" style="color:var(--green)">${logs.length}</div>
+        <div class="stat-lbl">${t('run_observe_win_count')}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" style="font-size:16px">
+          ${audience.gender === 'female' ? t('gender_female') : audience.gender === 'male' ? t('gender_male') : t('gender_other')}
+          ${audience.age}歳
+        </div>
+        <div class="stat-lbl">${t('run_observe_gender')} / ${t('run_observe_age')}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" style="font-size:14px">¥${audience.totalSpend.toLocaleString()}</div>
+        <div class="stat-lbl">${t('run_observe_spend')}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" style="font-size:14px">${audience.favoriteMembers || '–'}</div>
+        <div class="stat-lbl">${t('run_observe_fav')}</div>
+      </div>
+    </div>
+
+    <div style="font-size:12px;color:var(--text2);margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap">
+      <span>${t('run_observe_id')}：<strong style="color:var(--text)">${audience.id}</strong></span>
+      <span style="color:var(--text3)">|</span>
+      <span>${t('run_observe_member')}：${
+        types.length > 0
+          ? types.map(type => `<span class="badge ${FRAME_BADGE[type] || 'badge-gray'}" style="font-size:10px">${type}</span>`).join(' ')
+          : t('aud_general')
+      }</span>
+      <span style="color:var(--text3)">|</span>
+      <span>${t('run_observe_lastwin')}：${audience.lastWinDate || t('aud_not_won')}</span>
+      <span style="color:var(--text3)">|</span>
+      <span>${t('run_observe_intheater')}：${audience.inTheaterConsumed ? '✓' : '–'}</span>
+    </div>
+
+    <div class="card-header"><h3>${t('run_observe_win_log')}</h3></div>
+    ${logs.length === 0
+      ? `<p style="font-size:12px;color:var(--text3)">${t('run_observe_no_log')}</p>`
+      : `<div class="table-wrap"><table>
+          <thead><tr>
+            <th>${t('run_observe_date')}</th>
+            <th>${t('run_observe_frame')}</th>
+            <th>${t('perf_name')}</th>
+          </tr></thead>
+          <tbody>
+            ${logs.map(w => `<tr>
+              <td style="font-family:'DM Mono',monospace;font-size:12px">${w.date}</td>
+              <td><span class="badge ${FRAME_BADGE[w.frame] || 'badge-gray'}">${w.frame}</span></td>
+              <td style="font-size:12px;color:var(--text2)">${w.perfName || '–'}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table></div>`
+    }
   </div>`;
 }
 
